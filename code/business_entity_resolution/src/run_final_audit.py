@@ -19,7 +19,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.data_loader import load_entity_source, load_ground_truth, parse_ground_truth_to_dict, validate_ground_truth_table
-from src.split import SplitManifest
+from src.split import SplitManifest, create_stratified_split
 from src.normalizer import EntityNormalizer
 from src.index_builder import BlockingIndex
 from src.blocker import MultiChannelBlocker
@@ -97,14 +97,21 @@ def run_final_audit_pipeline() -> Dict[str, Any]:
     # 2. TRAIN PRODUCTION SCORER & CALIBRATOR
     # =========================================================================
     logger.info("Training production LightGBM model on training partitions...")
-    manifest_path = splits_dir / "split_manifest.tsv.gz"
-    if not manifest_path.exists():
-        manifest_path = splits_dir / "split_manifest.tsv"
-    manifest = SplitManifest.load(manifest_path)
-
     s1_train_df, _ = load_entity_source(train_dir / "train_source1.tsv", "S1")
     gt_df, _ = load_ground_truth(train_dir / "train_ground_truth.tsv")
     gt_map = parse_ground_truth_to_dict(gt_df)
+
+    splits_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = splits_dir / "split_manifest.tsv.gz"
+    if not manifest_path.exists():
+        manifest_path = splits_dir / "split_manifest.tsv"
+
+    if not manifest_path.exists():
+        logger.info("Split manifest not found. Generating deterministic stratified split manifest...")
+        manifest = create_stratified_split(s1_train_df, gt_df)
+        manifest.save(splits_dir / "split_manifest.tsv")
+    else:
+        manifest = SplitManifest.load(manifest_path)
 
     train_s1 = manifest.filter_s1_dataframe(s1_train_df, "train").head(8000).copy()
     earlystop_s1 = manifest.filter_s1_dataframe(s1_train_df, "earlystop").head(2000).copy()
