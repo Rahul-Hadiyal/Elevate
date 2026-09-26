@@ -135,160 +135,176 @@ class BlockingIndex:
         self._addr_token_df: Counter = Counter()
         self._char_3gram_df: Counter = Counter()
 
+    def update_frequencies(self, df: pd.DataFrame) -> None:
+        """Update global token and character 3-gram document frequencies from a DataFrame."""
+        if df is None or df.empty:
+            return
+        name_norms = df["name_norm"].fillna("").astype(str).tolist()
+        addr_norms = df["addr_norm"].fillna("").astype(str).tolist() if "addr_norm" in df.columns else [""] * len(name_norms)
+        for name in name_norms:
+            toks = set(name.split())
+            for t in toks:
+                if len(t) >= self.min_token_len:
+                    self._name_token_df[t] += 1
+            if len(name) >= 3:
+                for i in range(len(name) - 2):
+                    g = name[i:i+3]
+                    self._char_3gram_df[g] += 1
+
+        for addr in addr_norms:
+            toks = set(addr.split())
+            for t in toks:
+                if len(t) >= self.min_token_len:
+                    self._addr_token_df[t] += 1
+
+    def index_dataframe(self, df: pd.DataFrame) -> None:
+        """Populate inverted multi-channel indices from a normalized DataFrame."""
+        if df is None or df.empty:
+            return
+        eids = df["entity_id"].astype(str).str.strip().tolist()
+        name_norms = df["name_norm"].fillna("").astype(str).str.strip().tolist()
+        name_sorteds = df["name_tokens_sorted"].fillna("").astype(str).str.strip().tolist()
+        addr_raws = df["business_address"].fillna("").astype(str).tolist() if "business_address" in df.columns else [""] * len(eids)
+        addr_norms = df["addr_norm"].fillna("").astype(str).str.strip().tolist() if "addr_norm" in df.columns else [""] * len(eids)
+        addr_landmarks = df["addr_landmark"].fillna("").astype(str).str.strip().tolist() if "addr_landmark" in df.columns else [""] * len(eids)
+        addr_numbers = df["addr_numbers"].tolist() if "addr_numbers" in df.columns else [[]] * len(eids)
+        country_norms = df["country_norm"].fillna("unknown").astype(str).str.strip().tolist() if "country_norm" in df.columns else ["unknown"] * len(eids)
+        name_degens = df["name_is_degenerate"].tolist() if "name_is_degenerate" in df.columns else [False] * len(eids)
+
+        for i in range(len(eids)):
+            eid = eids[i]
+            name_norm = name_norms[i]
+            name_sorted = name_sorteds[i]
+            addr_raw = addr_raws[i]
+            addr_norm = addr_norms[i]
+            addr_lm = addr_landmarks[i]
+            nums = addr_numbers[i]
+            c_norm = country_norms[i]
+            is_degen = name_degens[i]
+
+            if not name_norm or is_degen:
+                continue
+
+            name_tokens = name_norm.split()
+            name_initial_3 = name_norm[:3]
+
+            # Channel A: Exact name + country
+            self.idx_exact_name_country[(name_norm, c_norm)].append(eid)
+
+            # Channel B1: Sorted tokens + country
+            if name_sorted and name_sorted != name_norm:
+                self.idx_sorted_name_country[(name_sorted, c_norm)].append(eid)
+
+            # Channel B2: First 2 tokens + country (for multi-token names)
+            if len(name_tokens) >= 2:
+                p2 = f"{name_tokens[0]} {name_tokens[1]}"
+                self.idx_name_prefix2_country[(p2, c_norm)].append(eid)
+
+            # Channel C: Primary Address Number + Name Initial 3 + Country
+            primary_num = ""
+            if isinstance(nums, list) and len(nums) > 0:
+                primary_num = str(nums[0]).strip().lower()
+                if primary_num:
+                    self.idx_addr_num_name3_country[(primary_num, name_initial_3, c_norm)].append(eid)
+
+            # Channel D: Address Distinctive Token + Name Initial 3 + Country
+            if addr_norm:
+                addr_tokens = addr_norm.split()
+                for atok in addr_tokens:
+                    if len(atok) >= self.min_token_len and self._addr_token_df.get(atok, 0) <= self.max_token_df:
+                        self.idx_addr_tok_name3_country[(atok, name_initial_3, c_norm)].append(eid)
+
+            # Channel E: Rare Distinctive Name Token + Country
+            if len(name_tokens) >= 2:
+                for ntok in name_tokens:
+                    if len(ntok) >= self.min_token_len:
+                        df_count = self._name_token_df.get(ntok, 0)
+                        if 2 <= df_count <= self.max_token_df:
+                            self.idx_rare_name_tok_country[(ntok, c_norm)].append(eid)
+
+            # Channel H: Landmark component + Country
+            if addr_lm:
+                self.idx_landmark_country[(addr_lm, c_norm)].append(eid)
+                self.idx_landmark_name3_country[(addr_lm, name_initial_3, c_norm)].append(eid)
+
+            # Channel I: Phonetic / Transliteration Key Indexes
+            ph_name = canonicalize_phonetic(name_norm)
+            if ph_name:
+                self.idx_phonetic_name_country[(ph_name, c_norm)].append(eid)
+                ph_tokens = ph_name.split()
+                if len(ph_tokens) >= 2:
+                    ph_sorted = " ".join(sorted(ph_tokens))
+                    ph_p2 = f"{ph_tokens[0]} {ph_tokens[1]}"
+                    self.idx_phonetic_sorted_country[(ph_sorted, c_norm)].append(eid)
+                    self.idx_phonetic_prefix2_country[(ph_p2, c_norm)].append(eid)
+
+            # Channel J: Core Token Pair Inverted Index
+            core_name_toks = [
+                t for t in name_tokens
+                if len(t) >= self.min_token_len and self._name_token_df.get(t, 0) <= 2000
+            ]
+            if 2 <= len(core_name_toks) <= 6:
+                for t1, t2 in combinations(sorted(core_name_toks), 2):
+                    self.idx_core_pair_country[(t1, t2, c_norm)].append(eid)
+
+            # Channel K: Address Number + Street Token Inverted Index
+            if primary_num and addr_norm:
+                for atok in addr_norm.split()[:4]:
+                    if len(atok) >= self.min_token_len and atok != primary_num:
+                        if self._addr_token_df.get(atok, 0) <= 2000:
+                            self.idx_addr_num_street_country[(primary_num, atok, c_norm)].append(eid)
+
+            # Channel L: Postal PIN / ZIP Code + Name Token Anchor
+            pin_code = extract_postal_code(addr_raw, addr_norm)
+            if pin_code and len(name_tokens) >= 1:
+                first_tok = name_tokens[0]
+                if len(first_tok) >= self.min_token_len:
+                    self.idx_pin_name_tok_country[(pin_code, first_tok, c_norm)].append(eid)
+
+            # Channel M: Rare Character 3-Gram Pair Inverted Index
+            for ntok in name_tokens:
+                if len(ntok) >= 5:
+                    grams = [ntok[j:j+3] for j in range(len(ntok) - 2)]
+                    rare_grams = sorted(set(grams), key=lambda g: self._char_3gram_df.get(g, 0))
+                    if len(rare_grams) >= 2:
+                        g1, g2 = sorted([rare_grams[0], rare_grams[1]])
+                        if self._char_3gram_df.get(g1, 0) <= 5000 and self._char_3gram_df.get(g2, 0) <= 5000:
+                            self.idx_char_3gram_pair_country[(g1, g2, c_norm)].append(eid)
+
+    def add_dataframe(self, df: pd.DataFrame) -> None:
+        """Incrementally updates frequencies and indices for a normalized DataFrame."""
+        if df is not None and not df.empty:
+            self.update_frequencies(df)
+            self.index_dataframe(df)
+
     def build_indexes(
         self,
-        s2_df: pd.DataFrame,
-        s3_df: pd.DataFrame,
+        s2_df: Optional[pd.DataFrame] = None,
+        s3_df: Optional[pd.DataFrame] = None,
+        dfs: Optional[Iterable[pd.DataFrame]] = None,
         include_tfidf: bool = False,
     ) -> "BlockingIndex":
-        """Builds all candidate blocking indices over S2 and S3 DataFrames.
+        """Builds all candidate blocking indices over Source 2 and Source 3 DataFrames.
 
         Args:
-            s2_df: Normalized Source 2 DataFrame.
-            s3_df: Normalized Source 3 DataFrame.
+            s2_df: Optional Normalized Source 2 DataFrame.
+            s3_df: Optional Normalized Source 3 DataFrame.
+            dfs: Optional list/iterable of DataFrames to index sequentially.
             include_tfidf: Whether to fit and transform sparse TF-IDF matrices.
 
         Returns:
             self
         """
-        logger.info("Indexing Source 2 and Source 3 records for candidate generation...")
+        logger.info("Indexing candidate records for candidate generation...")
+        all_dfs = list(dfs) if dfs is not None else [df for df in (s2_df, s3_df) if df is not None]
 
         # Step 1: Pre-calculate token frequencies
-        for df in (s2_df, s3_df):
-            if df is None or df.empty:
-                continue
-            name_norms = df["name_norm"].fillna("").astype(str).tolist()
-            addr_norms = df["addr_norm"].fillna("").astype(str).tolist()
-            for name in name_norms:
-                toks = set(name.split())
-                for t in toks:
-                    if len(t) >= self.min_token_len:
-                        self._name_token_df[t] += 1
-                if len(name) >= 3:
-                    for i in range(len(name) - 2):
-                        g = name[i:i+3]
-                        self._char_3gram_df[g] += 1
-
-            for addr in addr_norms:
-                toks = set(addr.split())
-                for t in toks:
-                    if len(t) >= self.min_token_len:
-                        self._addr_token_df[t] += 1
+        for df in all_dfs:
+            self.update_frequencies(df)
 
         # Step 2: Populate inverted indices
-        for df in (s2_df, s3_df):
-            if df is None or df.empty:
-                continue
-            eids = df["entity_id"].astype(str).str.strip().tolist()
-            name_norms = df["name_norm"].fillna("").astype(str).str.strip().tolist()
-            name_sorteds = df["name_tokens_sorted"].fillna("").astype(str).str.strip().tolist()
-            addr_raws = df["business_address"].fillna("").astype(str).tolist() if "business_address" in df.columns else [""] * len(eids)
-            addr_norms = df["addr_norm"].fillna("").astype(str).str.strip().tolist()
-            addr_landmarks = df["addr_landmark"].fillna("").astype(str).str.strip().tolist()
-            addr_numbers = df["addr_numbers"].tolist()
-            country_norms = df["country_norm"].fillna("unknown").astype(str).str.strip().tolist()
-            name_degens = df["name_is_degenerate"].tolist()
-
-            for i in range(len(eids)):
-                eid = eids[i]
-                name_norm = name_norms[i]
-                name_sorted = name_sorteds[i]
-                addr_raw = addr_raws[i]
-                addr_norm = addr_norms[i]
-                addr_lm = addr_landmarks[i]
-                nums = addr_numbers[i]
-                c_norm = country_norms[i]
-                is_degen = name_degens[i]
-
-                if not name_norm or is_degen:
-                    continue
-
-                name_tokens = name_norm.split()
-                name_initial_3 = name_norm[:3]
-
-                # Channel A: Exact name + country
-                self.idx_exact_name_country[(name_norm, c_norm)].append(eid)
-
-                # Channel B1: Sorted tokens + country
-                if name_sorted and name_sorted != name_norm:
-                    self.idx_sorted_name_country[(name_sorted, c_norm)].append(eid)
-
-                # Channel B2: First 2 tokens + country (for multi-token names)
-                if len(name_tokens) >= 2:
-                    p2 = f"{name_tokens[0]} {name_tokens[1]}"
-                    self.idx_name_prefix2_country[(p2, c_norm)].append(eid)
-
-                # Channel C: Primary Address Number + Name Initial 3 + Country
-                primary_num = ""
-                if isinstance(nums, list) and len(nums) > 0:
-                    primary_num = str(nums[0]).strip().lower()
-                    if primary_num:
-                        self.idx_addr_num_name3_country[(primary_num, name_initial_3, c_norm)].append(eid)
-
-                # Channel D: Address Distinctive Token + Name Initial 3 + Country
-                if addr_norm:
-                    addr_tokens = addr_norm.split()
-                    for atok in addr_tokens:
-                        if len(atok) >= self.min_token_len and self._addr_token_df.get(atok, 0) <= self.max_token_df:
-                            self.idx_addr_tok_name3_country[(atok, name_initial_3, c_norm)].append(eid)
-
-                # Channel E: Rare Distinctive Name Token + Country
-                if len(name_tokens) >= 2:
-                    for ntok in name_tokens:
-                        if len(ntok) >= self.min_token_len:
-                            df_count = self._name_token_df.get(ntok, 0)
-                            if 2 <= df_count <= self.max_token_df:
-                                self.idx_rare_name_tok_country[(ntok, c_norm)].append(eid)
-
-                # Channel H: Landmark component + Country
-                if addr_lm:
-                    self.idx_landmark_country[(addr_lm, c_norm)].append(eid)
-                    self.idx_landmark_name3_country[(addr_lm, name_initial_3, c_norm)].append(eid)
-
-                # Channel I: Phonetic / Transliteration Key Indexes
-                ph_name = canonicalize_phonetic(name_norm)
-                if ph_name:
-                    self.idx_phonetic_name_country[(ph_name, c_norm)].append(eid)
-                    ph_tokens = ph_name.split()
-                    if len(ph_tokens) >= 2:
-                        ph_sorted = " ".join(sorted(ph_tokens))
-                        ph_p2 = f"{ph_tokens[0]} {ph_tokens[1]}"
-                        self.idx_phonetic_sorted_country[(ph_sorted, c_norm)].append(eid)
-                        self.idx_phonetic_prefix2_country[(ph_p2, c_norm)].append(eid)
-
-                # Channel J: Core Token Pair Inverted Index
-                core_name_toks = [
-                    t for t in name_tokens
-                    if len(t) >= self.min_token_len and self._name_token_df.get(t, 0) <= 2000
-                ]
-                if 2 <= len(core_name_toks) <= 6:
-                    for t1, t2 in combinations(sorted(core_name_toks), 2):
-                        self.idx_core_pair_country[(t1, t2, c_norm)].append(eid)
-
-                # Channel K: Address Number + Street Token Inverted Index
-                if primary_num and addr_norm:
-                    for atok in addr_norm.split()[:4]:
-                        if len(atok) >= self.min_token_len and atok != primary_num:
-                            if self._addr_token_df.get(atok, 0) <= 2000:
-                                self.idx_addr_num_street_country[(primary_num, atok, c_norm)].append(eid)
-
-                # Channel L: Postal PIN / ZIP Code + Name Token Anchor
-                pin_code = extract_postal_code(addr_raw, addr_norm)
-                if pin_code and len(name_tokens) >= 1:
-                    first_tok = name_tokens[0]
-                    if len(first_tok) >= self.min_token_len:
-                        self.idx_pin_name_tok_country[(pin_code, first_tok, c_norm)].append(eid)
-
-                # Channel M: Rare Character 3-Gram Pair Inverted Index
-                for ntok in name_tokens:
-                    if len(ntok) >= 5:
-                        grams = [ntok[j:j+3] for j in range(len(ntok) - 2)]
-                        rare_grams = sorted(set(grams), key=lambda g: self._char_3gram_df.get(g, 0))
-                        if len(rare_grams) >= 2:
-                            g1, g2 = sorted([rare_grams[0], rare_grams[1]])
-                            if self._char_3gram_df.get(g1, 0) <= 5000 and self._char_3gram_df.get(g2, 0) <= 5000:
-                                self.idx_char_3gram_pair_country[(g1, g2, c_norm)].append(eid)
-
+        for df in all_dfs:
+            self.index_dataframe(df)
 
         logger.info(
             f"BlockingIndex built: "

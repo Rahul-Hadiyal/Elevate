@@ -16,12 +16,51 @@ from src.hard_negatives import HardNegativeAnalyzer
 logger = logging.getLogger(__name__)
 
 
-def build_entity_lookup(df: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
+class CompactRecord:
+    """Lightweight slotted record representation to minimize memory footprint during test inference."""
+    __slots__ = (
+        "entity_id", "business_name", "name_norm", "name_tokens_sorted",
+        "name_is_degenerate", "business_address", "addr_norm",
+        "addr_landmark", "addr_numbers", "country_norm"
+    )
+
+    def __init__(
+        self,
+        entity_id: str,
+        business_name: str,
+        name_norm: str,
+        name_tokens_sorted: str,
+        name_is_degenerate: bool,
+        business_address: str,
+        addr_norm: str,
+        addr_landmark: str,
+        addr_numbers: List[str],
+        country_norm: str,
+    ):
+        self.entity_id = entity_id
+        self.business_name = business_name
+        self.name_norm = name_norm
+        self.name_tokens_sorted = name_tokens_sorted
+        self.name_is_degenerate = name_is_degenerate
+        self.business_address = business_address
+        self.addr_norm = addr_norm
+        self.addr_landmark = addr_landmark
+        self.addr_numbers = addr_numbers
+        self.country_norm = country_norm
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
+    def __getitem__(self, key: str) -> Any:
+        return getattr(self, key)
+
+
+def build_entity_lookup(df: pd.DataFrame) -> Dict[str, Any]:
     """Build fast entity attribute lookup map from a normalized DataFrame.
 
-    Converts DataFrame rows into compact dictionary lookups for fast retrieval.
+    Converts DataFrame rows into compact memory-efficient records for fast retrieval.
     """
-    lookup: Dict[str, Dict[str, Any]] = {}
+    lookup: Dict[str, Any] = {}
     if df is None or df.empty:
         return lookup
 
@@ -39,18 +78,18 @@ def build_entity_lookup(df: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
     country_norms = df["country_norm"].fillna("unknown").astype(str).tolist() if "country_norm" in df.columns else ["unknown"] * len(eids)
 
     for i in range(len(eids)):
-        lookup[eids[i]] = {
-            "entity_id": eids[i],
-            "business_name": name_raws[i],
-            "name_norm": name_norms[i],
-            "name_tokens_sorted": name_sorteds[i],
-            "name_is_degenerate": name_degens[i],
-            "business_address": addr_raws[i],
-            "addr_norm": addr_norms[i],
-            "addr_landmark": addr_lms[i],
-            "addr_numbers": addr_nums[i],
-            "country_norm": country_norms[i],
-        }
+        lookup[eids[i]] = CompactRecord(
+            entity_id=eids[i],
+            business_name=name_raws[i],
+            name_norm=name_norms[i],
+            name_tokens_sorted=name_sorteds[i],
+            name_is_degenerate=name_degens[i],
+            business_address=addr_raws[i],
+            addr_norm=addr_norms[i],
+            addr_landmark=addr_lms[i],
+            addr_numbers=addr_nums[i],
+            country_norm=country_norms[i],
+        )
 
     return lookup
 

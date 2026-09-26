@@ -238,26 +238,51 @@ def run_final_audit_pipeline() -> Dict[str, Any]:
         "decision_layer": "Exact Expected-F0.5 DP Optimization with Conflict Resolution (H1)",
     }
 
+    # Release training data from memory
+    logger.info("Releasing training memory allocations...")
+    import gc
+    del train_s1, earlystop_s1, cal_s1, all_train_s1, target_gt_ids
+    del s2_train_df, s3_train_df, s2_train_sample, s3_train_sample
+    del train_s1_norm, es_s1_norm, cal_s1_norm, s2_train_norm, s3_train_norm, all_norm_s1
+    del s1_lookup, cand_train_lookup, index, blocker, train_b, es_b, cal_b, s1_train_df
+    gc.collect()
+
     # =========================================================================
     # 3. TEST INFERENCE EXECUTION
     # =========================================================================
-    logger.info("Loading official test dataset...")
+    logger.info("Loading official test dataset Source 1...")
     test_s1_df, _ = load_entity_source(test_dir / "test_source1.tsv", "S1")
-    test_s2_df, _ = load_entity_source(test_dir / "test_source2.tsv", "S2")
-    test_s3_df, _ = load_entity_source(test_dir / "test_source3.tsv", "S3")
-
-    logger.info(f"Loaded {len(test_s1_df):,d} S1, {len(test_s2_df):,d} S2, {len(test_s3_df):,d} S3.")
-
-    logger.info("Normalizing candidate records and building test BlockingIndex...")
-    test_s2_norm = normalizer.normalize_dataframe(test_s2_df)
-    test_s3_norm = normalizer.normalize_dataframe(test_s3_df)
+    logger.info(f"Loaded {len(test_s1_df):,d} S1 records.")
 
     test_index = BlockingIndex(min_token_len=3, max_token_df=5000)
-    test_index.build_indexes(test_s2_norm, test_s3_norm)
-    test_blocker = MultiChannelBlocker(test_index, max_cands_per_key=100)
+    cand_test_lookup = {}
 
-    cand_test_lookup = build_entity_lookup(test_s2_norm)
+    logger.info("Loading and normalizing test Source 2...")
+    test_s2_df, _ = load_entity_source(test_dir / "test_source2.tsv", "S2")
+    test_s2_norm = normalizer.normalize_dataframe(test_s2_df)
+    del test_s2_df
+    gc.collect()
+
+    logger.info("Indexing test Source 2...")
+    test_index.add_dataframe(test_s2_norm)
+    cand_test_lookup.update(build_entity_lookup(test_s2_norm))
+    del test_s2_norm
+    gc.collect()
+
+    logger.info("Loading and normalizing test Source 3...")
+    test_s3_df, _ = load_entity_source(test_dir / "test_source3.tsv", "S3")
+    test_s3_norm = normalizer.normalize_dataframe(test_s3_df)
+    del test_s3_df
+    gc.collect()
+
+    logger.info("Indexing test Source 3...")
+    test_index.add_dataframe(test_s3_norm)
     cand_test_lookup.update(build_entity_lookup(test_s3_norm))
+    del test_s3_norm
+    gc.collect()
+
+    test_blocker = MultiChannelBlocker(test_index, max_cands_per_key=100)
+    logger.info(f"Test candidate lookup initialized with {len(cand_test_lookup):,d} candidate records.")
 
     logger.info("Executing fast chunked test inference with parallel feature extraction...")
     total_test_s1 = len(test_s1_df)
@@ -331,6 +356,8 @@ def run_final_audit_pipeline() -> Dict[str, Any]:
 
         chunk_preds = prod_decision_engine.optimize_predictions(entity_cand_map)
         all_predictions.update(chunk_preds)
+        del s1_chunk, s1_norm_chunk, s1_chunk_lookup, batch, raw_p, cal_p, entity_cand_map, st, cand_dict, pair_list
+        gc.collect()
         logger.info(f"  Processed Chunk {chunk_idx+1}/{num_chunks} ({e_i:,d}/{total_test_s1:,d} S1 entities).")
 
     inf_time_sec = time.time() - t0_inf
@@ -338,21 +365,22 @@ def run_final_audit_pipeline() -> Dict[str, Any]:
     # =========================================================================
     # 4. WRITE SUBMISSION TSV
     # =========================================================================
-    logger.info(f"Writing final submission TSV to {submission_tsv}...")
-    rows = []
-    for s1_id in test_s1_df["entity_id"]:
-        matched = all_predictions.get(s1_id, set())
-        matched_str = ",".join(sorted(list(matched))) if matched else ""
-        rows.append({
-            "source1_entity_id": s1_id,
-            "matched_entity_ids": matched_str,
-        })
-    sub_df = pd.DataFrame(rows)
     output_dir = repo_root / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
     matching_tsv = output_dir / "matching_results.tsv"
-    sub_df.to_csv(matching_tsv, sep="\t", index=False)
-    sub_df.to_csv(submission_tsv, sep="\t", index=False)
+
+    logger.info(f"Writing final submission TSV to {submission_tsv} and {matching_tsv}...")
+    with open(submission_tsv, "w", encoding="utf-8", newline="\n") as f_sub, \
+         open(matching_tsv, "w", encoding="utf-8", newline="\n") as f_mat:
+        f_sub.write("source1_entity_id\tmatched_entity_ids\n")
+        f_mat.write("source1_entity_id\tmatched_entity_ids\n")
+        for s1_id in test_s1_df["entity_id"]:
+            matched = all_predictions.get(s1_id, set())
+            matched_str = ",".join(sorted(list(matched))) if matched else ""
+            line = f"{s1_id}\t{matched_str}\n"
+            f_sub.write(line)
+            f_mat.write(line)
+
     file_size_mb = matching_tsv.stat().st_size / (1024 * 1024)
     file_checksum = compute_sha256(matching_tsv)
 
@@ -360,6 +388,7 @@ def run_final_audit_pipeline() -> Dict[str, Any]:
     # 5. SUBMISSION VALIDATION & SANITY AUDIT
     # =========================================================================
     logger.info("Executing official validator on submission file...")
+    sub_df = pd.read_csv(submission_tsv, sep="\t", dtype=str).fillna("")
     val_report = validate_ground_truth_table(sub_df, file_path=submission_tsv, strict=True)
 
     # Cardinality distribution
