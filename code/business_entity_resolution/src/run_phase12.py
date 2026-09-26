@@ -123,7 +123,7 @@ def run_phase12_pipeline() -> Dict[str, Any]:
         store.add_channel_candidates("channel_G", c_g)
         store.add_channel_candidates("channel_H", c_h)
 
-        pairs_map = store.get_candidate_dict(cap=15)
+        pairs_map = store.get_candidate_dict(cap=50)
         flat_pairs = [(s1_id, c_id) for s1_id, cands in pairs_map.items() for c_id in cands]
         batch = extractor.extract_pair_batch(flat_pairs)
 
@@ -175,7 +175,24 @@ def run_phase12_pipeline() -> Dict[str, Any]:
     for i, p in enumerate(val_b_preds):
         p.prob = float(val_b_probs[i])
 
-    post_processor = PostProcessor(base_threshold=0.60, empty_addr_threshold=0.85)
+    # Export all scored pairs on Val_A (Phase 3 Step 3.2)
+    artifacts_dir = repo_root / "artifacts"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    val_a_scored_path = artifacts_dir / "val_a_scored.tsv"
+    logger.info(f"Exporting all {len(val_a_preds):,d} scored pairs on Val_A to {val_a_scored_path}...")
+    with open(val_a_scored_path, "w", encoding="utf-8") as f:
+        f.write("s1_id\tcand_id\tprob\n")
+        for p in val_a_preds:
+            f.write(f"{p.s1_id}\t{p.cand_id}\t{p.prob:.6f}\n")
+
+    post_processor = PostProcessor(
+        base_threshold=0.60,
+        empty_addr_threshold=0.85,
+        max_cands_per_source=999,
+        enforce_numeric_veto=False,
+        enforce_country_veto=False,
+        enforce_global_uniqueness=False,
+    )
 
     val_a_s1_ids = val_a_s1["entity_id"].tolist()
     val_b_s1_ids = val_b_s1["entity_id"].tolist()

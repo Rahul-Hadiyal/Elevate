@@ -20,6 +20,8 @@ from src.feature_engineer import build_entity_lookup
 from src.model import PairwiseScorer
 from src.calibration import ProbabilityCalibrator
 from src.post_processor import PostProcessor, CandidatePrediction
+from src.decision_engine import DecisionEngine
+from typing import Union
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +29,7 @@ logger = logging.getLogger(__name__)
 def generate_candidates_for_batch(
     s1_norm_chunk: pd.DataFrame,
     blocker: MultiChannelBlocker,
-    cap: int = 25,
+    cap: int = 50,
 ) -> Tuple[Dict[str, List[str]], Dict[Tuple[str, str], int]]:
     """Generate candidates for a chunk of normalized S1 records with multi-channel ranking."""
     cands_a = blocker.generate_channel_a(s1_norm_chunk)
@@ -59,9 +61,10 @@ def run_batch_inference(
     s3_df: pd.DataFrame,
     scorer: PairwiseScorer,
     calibrator: ProbabilityCalibrator,
-    post_processor: PostProcessor,
+    post_processor: Optional[Union[PostProcessor, DecisionEngine]] = None,
+    decision_engine: Optional[DecisionEngine] = None,
     chunk_size: int = 100000,
-    cap_cands_per_s1: int = 25,
+    cap_cands_per_s1: int = 50,
 ) -> pd.DataFrame:
     """Run full entity resolution inference across test datasets."""
     normalizer = EntityNormalizer()
@@ -114,42 +117,57 @@ def run_batch_inference(
         raw_probs = scorer.predict_proba(batch.features)
         cal_probs = calibrator.predict_proba(raw_probs)
 
-        # Extract feature indicators for post-processing guards
-        feat_names = batch.feature_names
-        idx_s1_empty = feat_names.index("feat_s1_addr_is_empty") if "feat_s1_addr_is_empty" in feat_names else -1
-        idx_cand_empty = feat_names.index("feat_cand_addr_is_empty") if "feat_cand_addr_is_empty" in feat_names else -1
-        idx_num_disagree = feat_names.index("feat_addr_num_disagreement") if "feat_addr_num_disagreement" in feat_names else -1
-        idx_country_match = feat_names.index("feat_country_exact_match") if "feat_country_exact_match" in feat_names else -1
-        idx_country_s1_m = feat_names.index("feat_country_s1_missing") if "feat_country_s1_missing" in feat_names else -1
-        idx_country_cand_m = feat_names.index("feat_country_cand_missing") if "feat_country_cand_missing" in feat_names else -1
+        active_engine = decision_engine if decision_engine is not None else (post_processor if isinstance(post_processor, DecisionEngine) else None)
+        if active_engine is not None:
+            entity_cand_map: Dict[str, List[Tuple[str, float]]] = {}
+            for i, (s1_id, cid) in enumerate(batch.pair_ids):
+                entity_cand_map.setdefault(s1_id, []).append((cid, float(cal_probs[i])))
 
-        cand_preds: List[CandidatePrediction] = []
-        for i, (s1_id, cid) in enumerate(batch.pair_ids):
-            p = float(cal_probs[i])
-            src = "S2" if (cid.startswith("S2-") or cid.startswith("S2_")) else "S3"
-            
-            s1_empty = bool(batch.features[i, idx_s1_empty] > 0.5) if idx_s1_empty >= 0 else False
-            c_empty = bool(batch.features[i, idx_cand_empty] > 0.5) if idx_cand_empty >= 0 else False
-            num_disagree = bool(batch.features[i, idx_num_disagree] > 0.5) if idx_num_disagree >= 0 else False
-            
-            c_match = bool(batch.features[i, idx_country_match] > 0.5) if idx_country_match >= 0 else True
-            cs1_m = bool(batch.features[i, idx_country_s1_m] > 0.5) if idx_country_s1_m >= 0 else False
-            cc_m = bool(batch.features[i, idx_country_cand_m] > 0.5) if idx_country_cand_m >= 0 else False
-            country_disagree = (not c_match) and (not cs1_m) and (not cc_m)
+            # Every S1 entity in the chunk must be represented, including
+            # entities with zero candidates -> they yield an empty prediction.
+            for s1_id in s1_norm_chunk["entity_id"]:
+                entity_cand_map.setdefault(s1_id, [])
 
-            cand_preds.append(CandidatePrediction(
-                s1_id=s1_id,
-                cand_id=cid,
-                prob=p,
-                cand_source=src,
-                has_empty_addr=s1_empty or c_empty,
-                has_numeric_disagreement=num_disagree,
-                has_country_disagreement=country_disagree,
-            ))
+            chunk_preds = active_engine.optimize_predictions(entity_cand_map)
+            all_predictions.update(chunk_preds)
+        else:
+            # Extract feature indicators for post-processing guards
+            feat_names = batch.feature_names
+            idx_s1_empty = feat_names.index("feat_s1_addr_is_empty") if "feat_s1_addr_is_empty" in feat_names else -1
+            idx_cand_empty = feat_names.index("feat_cand_addr_is_empty") if "feat_cand_addr_is_empty" in feat_names else -1
+            idx_num_disagree = feat_names.index("feat_addr_num_disagreement") if "feat_addr_num_disagreement" in feat_names else -1
+            idx_country_match = feat_names.index("feat_country_exact_match") if "feat_country_exact_match" in feat_names else -1
+            idx_country_s1_m = feat_names.index("feat_country_s1_missing") if "feat_country_s1_missing" in feat_names else -1
+            idx_country_cand_m = feat_names.index("feat_country_cand_missing") if "feat_country_cand_missing" in feat_names else -1
 
-        # Apply post-processor
-        chunk_preds = post_processor.filter_and_assign(cand_preds, all_s1_ids=s1_norm_chunk["entity_id"].tolist())
-        all_predictions.update(chunk_preds)
+            cand_preds: List[CandidatePrediction] = []
+            for i, (s1_id, cid) in enumerate(batch.pair_ids):
+                p = float(cal_probs[i])
+                src = "S2" if (cid.startswith("S2-") or cid.startswith("S2_")) else "S3"
+                
+                s1_empty = bool(batch.features[i, idx_s1_empty] > 0.5) if idx_s1_empty >= 0 else False
+                c_empty = bool(batch.features[i, idx_cand_empty] > 0.5) if idx_cand_empty >= 0 else False
+                num_disagree = bool(batch.features[i, idx_num_disagree] > 0.5) if idx_num_disagree >= 0 else False
+                
+                c_match = bool(batch.features[i, idx_country_match] > 0.5) if idx_country_match >= 0 else True
+                cs1_m = bool(batch.features[i, idx_country_s1_m] > 0.5) if idx_country_s1_m >= 0 else False
+                cc_m = bool(batch.features[i, idx_country_cand_m] > 0.5) if idx_country_cand_m >= 0 else False
+                country_disagree = (not c_match) and (not cs1_m) and (not cc_m)
+
+                cand_preds.append(CandidatePrediction(
+                    s1_id=s1_id,
+                    cand_id=cid,
+                    prob=p,
+                    cand_source=src,
+                    has_empty_addr=s1_empty or c_empty,
+                    has_numeric_disagreement=num_disagree,
+                    has_country_disagreement=country_disagree,
+                ))
+
+            # Apply post-processor
+            proc = post_processor if isinstance(post_processor, PostProcessor) else PostProcessor()
+            chunk_preds = proc.filter_and_assign(cand_preds, all_s1_ids=s1_norm_chunk["entity_id"].tolist())
+            all_predictions.update(chunk_preds)
 
     # Format into DataFrame
     rows = []

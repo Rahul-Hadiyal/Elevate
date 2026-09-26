@@ -30,6 +30,7 @@ from src.feature_engineer import build_entity_lookup
 from src.model import PairwiseScorer
 from src.calibration import ProbabilityCalibrator
 from src.post_processor import PostProcessor, CandidatePrediction
+from src.decision_engine import DecisionEngine
 from src.metrics import compute_macro_f05
 
 logging.basicConfig(
@@ -179,7 +180,12 @@ def run_final_audit_pipeline() -> Dict[str, Any]:
     
     cal_raw = prod_scorer.predict_proba(cal_b.features)
     prod_calibrator = ProbabilityCalibrator(method="sigmoid").fit(cal_raw, cal_b.labels)
-    prod_pp = PostProcessor(base_threshold=0.60)
+    prod_decision_engine = DecisionEngine(
+        margin_delta=0.05,
+        min_prob_filter=0.01,
+        max_candidates_per_entity=20,
+        enable_conflict_resolution=True,
+    )
 
     model_metadata = {
         "model_type": "LightGBM Gradient Boosted Decision Trees",
@@ -196,8 +202,7 @@ def run_final_audit_pipeline() -> Dict[str, Any]:
         },
         "best_iteration": prod_scorer.best_iteration_,
         "calibration_method": "Platt Sigmoid Scaling (Logistic Regression)",
-        "optimal_threshold": 0.60,
-        "post_processing": "Calibrated Multi-Source Probability Filtering (t* = 0.60)",
+        "decision_layer": "Exact Expected-F0.5 DP Optimization with Conflict Resolution (H1)",
     }
 
     # =========================================================================
@@ -261,7 +266,7 @@ def run_final_audit_pipeline() -> Dict[str, Any]:
         ]:
             st.add_channel_candidates(ch_name, ch_cands)
 
-        cand_dict = st.get_candidate_dict(cap=15)
+        cand_dict = st.get_candidate_dict(cap=50)
         for s1_id in s1_norm_chunk["entity_id"]:
             blocking_cands_per_s1.append(len(cand_dict.get(s1_id, [])))
 
@@ -283,17 +288,15 @@ def run_final_audit_pipeline() -> Dict[str, Any]:
         if len(all_scores_sample) < 500000:
             all_scores_sample.extend(cal_p[:10000].tolist())
 
-        cand_preds: List[CandidatePrediction] = []
+        entity_cand_map: Dict[str, List[Tuple[str, float]]] = {}
         for i, (s1_id, cid) in enumerate(batch.pair_ids):
-            src = "S2" if (cid.startswith("S2-") or cid.startswith("S2_")) else "S3"
-            cand_preds.append(CandidatePrediction(
-                s1_id=s1_id,
-                cand_id=cid,
-                prob=float(cal_p[i]),
-                cand_source=src,
-            ))
+            entity_cand_map.setdefault(s1_id, []).append((cid, float(cal_p[i])))
 
-        chunk_preds = prod_pp.filter_and_assign(cand_preds, all_s1_ids=s1_norm_chunk["entity_id"].tolist())
+        # Ensure every entity in chunk is present
+        for s1_id in s1_norm_chunk["entity_id"]:
+            entity_cand_map.setdefault(s1_id, [])
+
+        chunk_preds = prod_decision_engine.optimize_predictions(entity_cand_map)
         all_predictions.update(chunk_preds)
         logger.info(f"  Processed Chunk {chunk_idx+1}/{num_chunks} ({e_i:,d}/{total_test_s1:,d} S1 entities).")
 
