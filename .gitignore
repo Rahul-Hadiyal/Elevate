@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Large dataset files (too large for git)
+dataset/
+6ab10eb3b23ba_student_resource/
+
+# Large model artifacts (binary files)
+artifacts/models/*.joblib
+artifacts/submissions/
+
+# Log outputs (can be regenerated)
+logs/
+
+# Splits (can be regenerated)
+artifacts/splits/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Gemini/AI tool internal files
+.gemini/
