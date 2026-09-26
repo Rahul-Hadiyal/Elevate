@@ -67,8 +67,11 @@ def run_final_audit_pipeline() -> Dict[str, Any]:
         elif (repo_root / "6ab10eb3b23ba_student_resource.zip").exists():
             zip_file = repo_root / "6ab10eb3b23ba_student_resource.zip"
             if zip_file.stat().st_size < 2000:
-                logger.info("6ab10eb3b23ba_student_resource.zip is a Git LFS pointer. Running 'git lfs pull' to fetch binary archive...")
-                os.system("git lfs pull")
+                logger.info("6ab10eb3b23ba_student_resource.zip is a Git LFS pointer. Installing git-lfs and fetching binary archive...")
+                if sys.platform.startswith("linux"):
+                    os.system("apt-get update -qq && apt-get install -y -qq git-lfs && git lfs install && git lfs pull")
+                else:
+                    os.system("git lfs pull")
             
             import zipfile
             logger.info("Extracting dataset archive 6ab10eb3b23ba_student_resource.zip...")
