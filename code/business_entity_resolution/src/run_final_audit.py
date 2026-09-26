@@ -65,9 +65,14 @@ def run_final_audit_pipeline() -> Dict[str, Any]:
             train_dir = repo_root / "6ab10eb3b23ba_student_resource" / "dataset" / "train"
             test_dir = repo_root / "6ab10eb3b23ba_student_resource" / "dataset" / "test"
         elif (repo_root / "6ab10eb3b23ba_student_resource.zip").exists():
+            zip_file = repo_root / "6ab10eb3b23ba_student_resource.zip"
+            if zip_file.stat().st_size < 2000:
+                logger.info("6ab10eb3b23ba_student_resource.zip is a Git LFS pointer. Running 'git lfs pull' to fetch binary archive...")
+                os.system("git lfs pull")
+            
             import zipfile
             logger.info("Extracting dataset archive 6ab10eb3b23ba_student_resource.zip...")
-            with zipfile.ZipFile(repo_root / "6ab10eb3b23ba_student_resource.zip", "r") as zf:
+            with zipfile.ZipFile(zip_file, "r") as zf:
                 zf.extractall(repo_root)
             if (repo_root / "student_resource" / "dataset" / "train").exists():
                 train_dir = repo_root / "student_resource" / "dataset" / "train"
