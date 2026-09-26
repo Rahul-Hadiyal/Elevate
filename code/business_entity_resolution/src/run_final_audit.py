@@ -315,9 +315,13 @@ def run_final_audit_pipeline() -> Dict[str, Any]:
             "matched_entity_ids": matched_str,
         })
     sub_df = pd.DataFrame(rows)
+    output_dir = repo_root / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    matching_tsv = output_dir / "matching_results.tsv"
+    sub_df.to_csv(matching_tsv, sep="\t", index=False)
     sub_df.to_csv(submission_tsv, sep="\t", index=False)
-    file_size_mb = submission_tsv.stat().st_size / (1024 * 1024)
-    file_checksum = compute_sha256(submission_tsv)
+    file_size_mb = matching_tsv.stat().st_size / (1024 * 1024)
+    file_checksum = compute_sha256(matching_tsv)
 
     # =========================================================================
     # 5. SUBMISSION VALIDATION & SANITY AUDIT
