@@ -55,6 +55,24 @@ def run_final_audit_pipeline() -> Dict[str, Any]:
     repo_root = Path(__file__).resolve().parent.parent.parent.parent
     train_dir = repo_root / "dataset" / "train"
     test_dir = repo_root / "dataset" / "test"
+
+    # Auto-resolve dataset directory if located in student_resource or zip
+    if not train_dir.exists():
+        if (repo_root / "student_resource" / "dataset" / "train").exists():
+            train_dir = repo_root / "student_resource" / "dataset" / "train"
+            test_dir = repo_root / "student_resource" / "dataset" / "test"
+        elif (repo_root / "6ab10eb3b23ba_student_resource" / "dataset" / "train").exists():
+            train_dir = repo_root / "6ab10eb3b23ba_student_resource" / "dataset" / "train"
+            test_dir = repo_root / "6ab10eb3b23ba_student_resource" / "dataset" / "test"
+        elif (repo_root / "6ab10eb3b23ba_student_resource.zip").exists():
+            import zipfile
+            logger.info("Extracting dataset archive 6ab10eb3b23ba_student_resource.zip...")
+            with zipfile.ZipFile(repo_root / "6ab10eb3b23ba_student_resource.zip", "r") as zf:
+                zf.extractall(repo_root)
+            if (repo_root / "student_resource" / "dataset" / "train").exists():
+                train_dir = repo_root / "student_resource" / "dataset" / "train"
+                test_dir = repo_root / "student_resource" / "dataset" / "test"
+
     splits_dir = repo_root / "artifacts" / "splits"
     subs_dir = repo_root / "artifacts" / "submissions"
     logs_dir = repo_root / "logs"

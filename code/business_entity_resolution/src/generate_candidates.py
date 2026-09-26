@@ -35,13 +35,22 @@ def generate_candidate_pairs_file(
     output_path: Path = Path("output/candidate_pairs.tsv"),
     matching_path: Path = Path("output/matching_results.tsv"),
     chunk_size: int = 100000,
-    max_cands_per_s1: int = 25,
+    max_cands_per_s1: int = 50,
 ) -> None:
     """Streams candidate_pairs.tsv directly to disk using multi-channel blocking."""
     t0_start = time.time()
     logger.info("=" * 70)
     logger.info("CANDIDATE PAIRS (BLOCKING) GENERATION PIPELINE")
     logger.info("=" * 70)
+
+    repo_root = Path(__file__).resolve().parent.parent.parent.parent
+    if not test_dir.exists():
+        if (repo_root / "dataset" / "test").exists():
+            test_dir = repo_root / "dataset" / "test"
+        elif (repo_root / "student_resource" / "dataset" / "test").exists():
+            test_dir = repo_root / "student_resource" / "dataset" / "test"
+        elif (repo_root / "6ab10eb3b23ba_student_resource" / "dataset" / "test").exists():
+            test_dir = repo_root / "6ab10eb3b23ba_student_resource" / "dataset" / "test"
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
