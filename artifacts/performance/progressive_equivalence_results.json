@@ -1,0 +1,47 @@
+[
+  {
+    "cohort": "Cohort 1 (1,000 S1 Entities)",
+    "s1_count": 1000,
+    "pair_count": 24210,
+    "max_feature_diff": 0.0,
+    "max_raw_prob_diff": 0.0,
+    "max_cal_prob_diff": 0.0,
+    "decision_mismatches": 0,
+    "matched_ref": 914,
+    "matched_opt": 914,
+    "exact_match_percentage": 100.0,
+    "reference_runtime_sec": 3.268,
+    "optimized_runtime_sec": 3.074,
+    "speedup_factor": 1.06
+  },
+  {
+    "cohort": "Cohort 2 (10,000 S1 Entities)",
+    "s1_count": 10000,
+    "pair_count": 239333,
+    "max_feature_diff": 0.0,
+    "max_raw_prob_diff": 0.0,
+    "max_cal_prob_diff": 0.0,
+    "decision_mismatches": 0,
+    "matched_ref": 9197,
+    "matched_opt": 9197,
+    "exact_match_percentage": 100.0,
+    "reference_runtime_sec": 34.282,
+    "optimized_runtime_sec": 28.561,
+    "speedup_factor": 1.2
+  },
+  {
+    "cohort": "Cohort 3 (Diverse Subsets: India, High-Cardinality, S2+S3, Conflicting)",
+    "s1_count": 2000,
+    "pair_count": 49135,
+    "max_feature_diff": 0.0,
+    "max_raw_prob_diff": 0.0,
+    "max_cal_prob_diff": 0.0,
+    "decision_mismatches": 0,
+    "matched_ref": 1832,
+    "matched_opt": 1832,
+    "exact_match_percentage": 100.0,
+    "reference_runtime_sec": 6.889,
+    "optimized_runtime_sec": 5.459,
+    "speedup_factor": 1.26
+  }
+]

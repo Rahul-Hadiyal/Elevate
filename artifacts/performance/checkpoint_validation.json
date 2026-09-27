@@ -1,0 +1,14 @@
+{
+  "benchmark": "Resumable Checkpointing & Interruption Simulation",
+  "clean_run_sha256": "f69600e7e479bed7e307eb98606949e44273b9cf8efb81a280200f357537ba00",
+  "resumed_run_sha256": "f69600e7e479bed7e307eb98606949e44273b9cf8efb81a280200f357537ba00",
+  "byte_for_byte_equality": true,
+  "skipped_chunks_detected": [
+    0,
+    1
+  ],
+  "resumed_chunks_computed": [
+    2
+  ],
+  "status": "PASS"
+}

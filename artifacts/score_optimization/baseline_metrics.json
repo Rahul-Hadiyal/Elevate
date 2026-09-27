@@ -1,0 +1,33 @@
+{
+  "benchmark_cohort": "5,000 held-out S1 entities (val_b, seed 42)",
+  "num_s1_entities": 5000,
+  "total_true_links": 17138,
+  "total_predicted_links": 14774,
+  "baseline_macro_f05": 0.9288,
+  "baseline_precision": 0.9648,
+  "baseline_recall": 0.8629,
+  "candidate_recall": 0.8721,
+  "retrieval_oracle_macro_f05": 0.9438,
+  "retrieval_oracle_recall": 0.8827,
+  "total_tp": 14612,
+  "total_fp": 162,
+  "total_fn": 2526,
+  "singletons": {
+    "total": 310,
+    "accuracy": 0.9581,
+    "false_merges": 13
+  },
+  "score_by_country": {
+    "US": {
+      "macro_f05": 0.973,
+      "cand_recall": 0.9526,
+      "count": 2927
+    },
+    "India": {
+      "macro_f05": 0.8665,
+      "cand_recall": 0.7602,
+      "count": 2073
+    }
+  },
+  "runtime_seconds": 251.31
+}

@@ -1,0 +1,9 @@
+{
+  "benchmark": "End-to-End Equivalence on 5,000 S1 Entities against output/matching_results.tsv",
+  "entities_checked": 5000,
+  "exact_matches": 3220,
+  "mismatches": 1780,
+  "match_rate_percentage": 64.4,
+  "fast_feature_throughput_pairs_per_sec": 29937.4,
+  "total_compute_seconds": 5.636
+}

@@ -1,0 +1,62 @@
+{
+  "timers_seconds": {
+    "t_load_s1": 6.082961797714233,
+    "t_load_candidate_pairs": 1.045095682144165,
+    "t_normalize_s1": 3.5475332736968994,
+    "t_build_s1_lookup": 0.19893813133239746,
+    "t_load_s2": 17.721269845962524,
+    "t_norm_s2": 34.44893836975098,
+    "t_load_s3": 15.97152590751648,
+    "t_norm_s3": 27.895951986312866,
+    "t_build_cand_lookup": 12.700048208236694,
+    "t_total_candidates_prep": 108.73775339126587,
+    "t_flatten_pairs": 5.025922060012817,
+    "t_load_models": 0.7191717624664307,
+    "t_feature_extraction": 302.3533239364624,
+    "t_model_raw_predict": 5.758327960968018,
+    "t_model_cal_predict": 0.3365776538848877,
+    "t_total_inference": 320.87958240509033,
+    "t_build_cand_prob_map": 8.330265522003174,
+    "t_decision_engine": 223.90109968185425,
+    "t_write_tsv": 0.1011972427368164,
+    "total_wall_clock_time": 680.4493038654327
+  },
+  "memory_profile_mb": {
+    "initial_rss_mb": 151.9375,
+    "rss_after_load_s1_mb": 216.92578125,
+    "rss_after_load_pairs_mb": 426.94140625,
+    "rss_after_norm_s1_mb": 627.0546875,
+    "rss_after_s1_lookup_mb": 640.765625,
+    "rss_after_cand_lookup_mb": 3205.078125,
+    "rss_after_scoring_mb": 3271.3515625,
+    "rss_after_decision_engine_mb": 3353.23828125,
+    "peak_rss_mb": 3353.23828125
+  },
+  "throughput": {
+    "pairs_per_second_features": 7922.515846074765,
+    "pairs_per_second_scoring": 393016.58653459075,
+    "entities_per_second_decision_engine": 446.62576531375726,
+    "entities_per_second_end_to_end": 146.9617198987924
+  },
+  "percentage_of_wall_clock": {
+    "t_load_s1": 0.8939625278707338,
+    "t_load_candidate_pairs": 0.15358905890670815,
+    "t_normalize_s1": 0.5213515913006898,
+    "t_build_s1_lookup": 0.02923628993406097,
+    "t_load_s2": 2.6043482953532604,
+    "t_norm_s2": 5.062675231506105,
+    "t_load_s3": 2.347202916776743,
+    "t_norm_s3": 4.099637082122673,
+    "t_build_cand_lookup": 1.8664209274800412,
+    "t_total_candidates_prep": 15.980287256311176,
+    "t_flatten_pairs": 0.7386181500167653,
+    "t_load_models": 0.10569071911471244,
+    "t_feature_extraction": 44.43436450281923,
+    "t_model_raw_predict": 0.8462537808851662,
+    "t_model_cal_predict": 0.04946403089442356,
+    "t_total_inference": 47.15701531065836,
+    "t_build_cand_prob_map": 1.224230148327198,
+    "t_decision_engine": 32.90489069647626,
+    "t_write_tsv": 0.014872120841618116
+  }
+}

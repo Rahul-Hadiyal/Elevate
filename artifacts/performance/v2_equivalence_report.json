@@ -1,0 +1,12 @@
+{
+  "benchmark": "Exact Equivalence: Unoptimized V2 vs Fast Precomputed V2",
+  "sample_s1_count": 1000,
+  "sample_pair_count": 24210,
+  "max_feature_difference": 0.0,
+  "max_calibrated_prob_difference": 0.0,
+  "decision_mismatches": 0,
+  "exact_equivalence": true,
+  "reference_runtime_sec": 2.255,
+  "optimized_runtime_sec": 1.787,
+  "speedup_factor": 1.26
+}

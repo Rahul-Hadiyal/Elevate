@@ -1,0 +1,58 @@
+{
+  "hardware": {
+    "logical_cpus": 20,
+    "total_ram_gb": 31.75
+  },
+  "worker_scaling_results": [
+    {
+      "workers": 1,
+      "runtime_seconds": 4.6381,
+      "throughput_pairs_per_sec": 25847.6,
+      "speedup_vs_1_worker": 1.0
+    },
+    {
+      "workers": 2,
+      "runtime_seconds": 4.7645,
+      "throughput_pairs_per_sec": 25161.5,
+      "speedup_vs_1_worker": 0.97
+    },
+    {
+      "workers": 4,
+      "runtime_seconds": 5.325,
+      "throughput_pairs_per_sec": 22513.3,
+      "speedup_vs_1_worker": 0.87
+    },
+    {
+      "workers": 8,
+      "runtime_seconds": 4.7086,
+      "throughput_pairs_per_sec": 25460.2,
+      "speedup_vs_1_worker": 0.99
+    }
+  ],
+  "chunk_sizing_analysis": [
+    {
+      "chunk_size_s1": 50000,
+      "estimated_pairs": 1200000,
+      "estimated_ram_mb": 450,
+      "suitability": "Good for low-RAM Colab"
+    },
+    {
+      "chunk_size_s1": 100000,
+      "estimated_pairs": 2400000,
+      "estimated_ram_mb": 900,
+      "suitability": "Optimal: Balance of memory and throughput"
+    },
+    {
+      "chunk_size_s1": 200000,
+      "estimated_pairs": 4800000,
+      "estimated_ram_mb": 1800,
+      "suitability": "High throughput on >=16GB RAM"
+    }
+  ],
+  "recommended_configuration": {
+    "chunk_size_s1": 100000,
+    "num_workers": 4,
+    "fast_precomputed_entities": true,
+    "resumable_checkpointing": true
+  }
+}

@@ -1,0 +1,57 @@
+[
+  {
+    "cap": 50,
+    "label": "cap=50",
+    "pairs_count": 221157,
+    "retrieved_links": 14950,
+    "total_true_links": 17138,
+    "cand_recall": 0.8723,
+    "oracle_macro_f05": 0.9441,
+    "oracle_precision": 0.9772,
+    "oracle_recall": 0.8828
+  },
+  {
+    "cap": 75,
+    "label": "cap=75",
+    "pairs_count": 288288,
+    "retrieved_links": 15368,
+    "total_true_links": 17138,
+    "cand_recall": 0.8967,
+    "oracle_macro_f05": 0.9565,
+    "oracle_precision": 0.9832,
+    "oracle_recall": 0.9056
+  },
+  {
+    "cap": 100,
+    "label": "cap=100",
+    "pairs_count": 318688,
+    "retrieved_links": 15669,
+    "total_true_links": 17138,
+    "cand_recall": 0.9143,
+    "oracle_macro_f05": 0.9643,
+    "oracle_precision": 0.9864,
+    "oracle_recall": 0.9207
+  },
+  {
+    "cap": 150,
+    "label": "cap=150",
+    "pairs_count": 335152,
+    "retrieved_links": 15857,
+    "total_true_links": 17138,
+    "cand_recall": 0.9253,
+    "oracle_macro_f05": 0.9695,
+    "oracle_precision": 0.9888,
+    "oracle_recall": 0.9309
+  },
+  {
+    "cap": 999999,
+    "label": "uncapped",
+    "pairs_count": 338938,
+    "retrieved_links": 15886,
+    "total_true_links": 17138,
+    "cand_recall": 0.9269,
+    "oracle_macro_f05": 0.9703,
+    "oracle_precision": 0.9892,
+    "oracle_recall": 0.9325
+  }
+]

@@ -1,0 +1,38 @@
+{
+  "candidate_recall_link_level": 0.8721,
+  "total_gt_links": 17138,
+  "retrieved_gt_links": 14946,
+  "not_retrieved_gt_links": 2192,
+  "retrieval_oracle_macro_f05": 0.9438,
+  "retrieval_oracle_precision": 0.9768,
+  "retrieval_oracle_recall": 0.8827,
+  "by_country": {
+    "US": {
+      "cand_recall": 0.9526,
+      "retrieved": 9492,
+      "total": 9964
+    },
+    "India": {
+      "cand_recall": 0.7602,
+      "retrieved": 5454,
+      "total": 7174
+    }
+  },
+  "by_cardinality": {
+    "2_to_5": {
+      "cand_recall": 0.8736,
+      "retrieved": 11565,
+      "total": 13239
+    },
+    "6_plus": {
+      "cand_recall": 0.8655,
+      "retrieved": 3140,
+      "total": 3628
+    },
+    "1_match": {
+      "cand_recall": 0.8893,
+      "retrieved": 241,
+      "total": 271
+    }
+  }
+}

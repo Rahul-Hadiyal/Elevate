@@ -25,6 +25,7 @@ __MACOSX/
 # Large model artifacts (binary files)
 artifacts/models/*.joblib
 artifacts/submissions/
+artifacts/inference_chunks/*.tsv
 
 # Log outputs (can be regenerated)
 logs/

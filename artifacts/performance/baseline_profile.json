@@ -1,0 +1,33 @@
+{
+  "sample_s1_count": 10000,
+  "sample_pair_count": 239333,
+  "sample_unique_candidates": 220282,
+  "measured_timings_seconds": {
+    "load_candidates_sample": 0.04484081268310547,
+    "normalize_s1_sample": 4.886190891265869,
+    "load_and_normalize_candidates": 36.13798117637634,
+    "feature_extraction_56": 20.448030471801758,
+    "feature_extraction_name_idf": 1.9742827415466309,
+    "feature_extraction_total": 22.42231321334839,
+    "model_predict": 0.8965942859649658,
+    "calibration": 0.017241239547729492,
+    "decision_engine": 2.3732988834381104
+  },
+  "component_breakdown_10k_pairs": {
+    "postal_code_regex_seconds": 0.056875200010836124,
+    "phonetic_canonicalization_seconds": 0.2786280948203057,
+    "ngram_generation_seconds": 0.08739589690230787,
+    "token_splits_and_sets_seconds": 0.02853890584083274,
+    "rapidfuzz_name_seconds": 0.07598429662175477,
+    "rapidfuzz_address_seconds": 0.11865580402081832,
+    "repeated_entity_preprocessing_percentage": 69.87
+  },
+  "extrapolated_full_corpus_1_73M_S1": {
+    "estimated_pairs": 41465495,
+    "estimated_feature_extraction_hours": 1.08,
+    "estimated_model_inference_hours": 0.04,
+    "estimated_decision_engine_hours": 0.11,
+    "estimated_total_inference_hours": 1.24,
+    "bottleneck_identification": "Feature extraction accounts for >85% of total inference time, dominated by repeated entity-level token/phonetic/regex/ngram recomputations inside ThreadPoolExecutor under Python GIL."
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "corpus_duplicate_name_entities": 846097,
+  "corpus_duplicate_name_rate": 38.34,
+  "val_duplicate_name_entities": 1959,
+  "val_unique_name_entities": 3041,
+  "duplicate_name_macro_f05": 0.8679,
+  "duplicate_name_precision": 0.9325,
+  "duplicate_name_recall": 0.7599,
+  "unique_name_macro_f05": 0.968,
+  "unique_name_precision": 0.9857,
+  "unique_name_recall": 0.9292,
+  "top_frequent_names": [
+    {
+      "name": "primary care group",
+      "count": 253
+    },
+    {
+      "name": "ear nose & throat group",
+      "count": 251
+    },
+    {
+      "name": "pediatric group",
+      "count": 222
+    },
+    {
+      "name": "womens health group",
+      "count": 220
+    },
+    {
+      "name": "physical therapy group",
+      "count": 218
+    },
+    {
+      "name": "pediatric dental group",
+      "count": 216
+    },
+    {
+      "name": "behavioral health group",
+      "count": 215
+    },
+    {
+      "name": "chiropractic group",
+      "count": 209
+    },
+    {
+      "name": "orthopedic group",
+      "count": 208
+    },
+    {
+      "name": "eye group",
+      "count": 207
+    },
+    {
+      "name": "dental group",
+      "count": 205
+    },
+    {
+      "name": "family group",
+      "count": 204
+    },
+    {
+      "name": "dermatology group",
+      "count": 202
+    },
+    {
+      "name": "vision group",
+      "count": 199
+    },
+    {
+      "name": "urgent care group",
+      "count": 198
+    },
+    {
+      "name": "pediatric dentistry group",
+      "count": 198
+    },
+    {
+      "name": "internal medicine group",
+      "count": 197
+    },
+    {
+      "name": "foot & ankle group",
+      "count": 191
+    },
+    {
+      "name": "oncology group",
+      "count": 188
+    },
+    {
+      "name": "urology group",
+      "count": 185
+    }
+  ]
+}

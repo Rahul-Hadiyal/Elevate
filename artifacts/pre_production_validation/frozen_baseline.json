@@ -1,0 +1,44 @@
+{
+  "git_commit": "ddf5f32935cacdeb02821a6a277e89cc530ba086",
+  "leaderboard_score": 0.68135,
+  "matching_results_sha256": "4f6fbe0aaf1ec51f4789d822a12082f3ec7a9e70e4b410e0e9a672e046fe74d5",
+  "submission_file": "output/matching_results.tsv",
+  "production_script": "code/business_entity_resolution/src/run_final_audit.py",
+  "model_config": {
+    "type": "LightGBM Gradient Boosted Decision Trees",
+    "n_estimators": 500,
+    "learning_rate": 0.04,
+    "num_leaves": 35,
+    "max_depth": 7,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "best_iteration": 196,
+    "num_features": 56
+  },
+  "candidate_gen_config": {
+    "source": "output/candidate_pairs.tsv (precomputed by generate_candidates.py)",
+    "channels": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "G",
+      "H"
+    ],
+    "channel_count": 7,
+    "cap": 50,
+    "max_cands_per_key": 100
+  },
+  "feature_config": {
+    "st_counts": null,
+    "channel_count_feature": "HARDCODED 1.0 (PROVEN BUG)"
+  },
+  "decision_engine_config": {
+    "margin_delta": 0.05,
+    "min_prob_filter": 0.01,
+    "max_candidates_per_entity": 20,
+    "enable_conflict_resolution": true,
+    "loser_reoptimization_bug": "EMPTY_REMAINING_CANDS (PROVEN BUG)"
+  }
+}

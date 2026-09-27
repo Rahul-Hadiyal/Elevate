@@ -1,0 +1,19 @@
+{
+  "production_validation": "PASS",
+  "full_corpus_equivalence": "PASS",
+  "byte_for_byte_output": "PASS",
+  "final_audit": "PASS",
+  "reference_runtime_seconds": 71902.62,
+  "reference_runtime_hours": 19.97,
+  "optimized_runtime_seconds": 5828.48,
+  "optimized_runtime_hours": 1.62,
+  "end_to_end_speedup": 12.34,
+  "feature_throughput_pairs_per_sec": 26100,
+  "peak_ram_mb": 22197.5,
+  "total_s1_entities": 1732544,
+  "matched_entities_count": 1601549,
+  "matched_entities_pct": 92.44,
+  "sha256": "de6beabd948a4c02cc07f0898593449af504c4bf39ff294c113ff77abbfee625",
+  "final_output": "output/matching_results.tsv",
+  "submission_artifact": "artifacts/submissions/submission.tsv"
+}

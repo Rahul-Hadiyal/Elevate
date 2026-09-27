@@ -1,0 +1,33 @@
+{
+  "total_ground_truth_links": 17138,
+  "total_predictions": 16322,
+  "true_positives": 16165,
+  "macro_precision": 0.9852,
+  "macro_recall": 0.945,
+  "macro_f05": 0.9722,
+  "total_errors": 1130,
+  "total_false_negatives": 973,
+  "total_false_positives": 157,
+  "false_negative_breakdown": {
+    "candidate_retrieval_ceiling_unretrieved": 437,
+    "retrieved_but_scored_below_threshold": 521,
+    "conflict_resolution_and_collision_drops": 15
+  },
+  "false_positive_breakdown": {
+    "high_similarity_different_entity": 157
+  },
+  "error_fractions": {
+    "candidate_retrieval_unretrieved_pct": 38.67,
+    "model_ranking_threshold_pct": 46.11,
+    "decision_engine_conflict_pct": 1.33,
+    "false_positive_pct": 13.89
+  },
+  "baseline_comparison": {
+    "baseline_errors": 2688,
+    "final_errors": 1130,
+    "error_reduction_pct": 57.96,
+    "baseline_macro_f05": 0.9288,
+    "final_macro_f05": 0.9722,
+    "gain": 0.0434
+  }
+}

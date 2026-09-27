@@ -1,0 +1,11 @@
+{
+  "pipeline": "Channels A-K + Channel N (cap=100) + 63 Features (56 + 7 Name IDF)",
+  "macro_f05": 0.9641,
+  "macro_precision": 0.9815,
+  "macro_recall": 0.9291,
+  "tp": 15877,
+  "fp": 164,
+  "fn": 1261,
+  "false_merges": 16,
+  "total_true_links": 17138
+}

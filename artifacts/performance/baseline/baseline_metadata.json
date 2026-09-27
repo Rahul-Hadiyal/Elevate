@@ -1,0 +1,28 @@
+{
+  "benchmark_cohort": "Deterministic first 100,000 S1 from test_source1.tsv",
+  "num_s1_entities": 100000,
+  "num_candidate_pairs": 2395399,
+  "num_unique_candidates": 1555737,
+  "num_unique_s2": 950899,
+  "num_unique_s3": 604838,
+  "total_matched_links": 311057,
+  "cardinality": {
+    "singletons_0": 6048,
+    "match_1": 14570,
+    "match_2_to_5": 69167,
+    "match_6_plus": 10215,
+    "max_matches": 16,
+    "mean_matches": 3.11057
+  },
+  "system_info": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "cpu": "Intel64 Family 6 Model 186 Stepping 2, GenuineIntel",
+    "logical_cpus": 20,
+    "python_version": "3.14.0 (tags/v3.14.0:ebf955d, Oct  7 2025, 10:15:03) [MSC v.1944 64 bit (AMD64)]"
+  },
+  "git_commit": "ddf5f32935cacdeb02821a6a277e89cc530ba086",
+  "scorer_sha256": "ee199ba891a94562e3ea315cb96c12c0657252e2e1e34d6f8ffaf68374defdfe",
+  "calibrator_sha256": "2ff7a5d77e55d49494c0f84bd81e9f067e039b63da7a88463e45d7181e5e598b",
+  "submission_sha256": "74918daf652ebfe403bd574e5b6c0dc1e3d51ba24edcebf87095e424431adf86",
+  "submission_size_bytes": 5304167
+}

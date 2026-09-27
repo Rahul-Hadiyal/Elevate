@@ -183,6 +183,10 @@ class DecisionEngine:
         # Step 3: Margin-guarded conflict resolution
         conflicts_resolved = 0
         s1_entities_affected: Set[str] = set()
+        # Track candidate ownership: cand_id -> winning s1_id (if clear winner)
+        # ambiguous_dropped: candidates removed due to ambiguous collision (no one gets them)
+        ambiguous_dropped: Set[str] = set()
+        cand_winner: Dict[str, str] = {}
 
         for cand_id, claimants in reverse_index.items():
             if len(claimants) <= 1:
@@ -196,14 +200,16 @@ class DecisionEngine:
 
             score_diff = winner_p - runner_up_p
 
-            if score_diff < self.margin_delta:
+            if score_diff < self.margin_delta - 1e-9:
                 # Ambiguous collision: drop edge for all claimants (precision-protective)
+                ambiguous_dropped.add(cand_id)
                 for s1_id, _ in claimants:
                     if cand_id in selected_per_s1[s1_id]:
                         del selected_per_s1[s1_id][cand_id]
                         s1_entities_affected.add(s1_id)
             else:
-                # Clear winner: drop edge from all losers
+                # Clear winner: record winner, drop edge from all losers
+                cand_winner[cand_id] = winner_s1
                 for s1_id, _ in claimants[1:]:
                     if cand_id in selected_per_s1[s1_id]:
                         del selected_per_s1[s1_id][cand_id]
@@ -215,16 +221,32 @@ class DecisionEngine:
         )
 
         # Step 4: Loser re-optimisation for affected S1 entities
+        # For each affected S1 entity, exclude:
+        #   (a) Any candidate currently selected by ANOTHER entity (prevents duplicate cross-entity assignment)
+        #   (b) Any candidate dropped ambiguously in Step 3
+        # This guarantees:
+        #   1. Zero duplicate candidate assignments across entities
+        #   2. Correct retention of candidates won by the entity itself
+        #   3. Clean re-evaluation of alternate candidates for losers
+        all_assigned: Set[str] = {c for cands in selected_per_s1.values() for c in cands}
+
         for s1_id in s1_entities_affected:
+            curr_assigned = set(selected_per_s1[s1_id].keys())
+            # Fast exact equivalence: c_id not in ((all_assigned - curr_assigned) | ambiguous_dropped)
             remaining_cands = [
                 (c_id, p) for c_id, p in entity_candidate_map.get(s1_id, [])
-                if c_id in selected_per_s1[s1_id]  # Only consider non-stripped candidates
+                if (c_id in curr_assigned or c_id not in all_assigned) and (c_id not in ambiguous_dropped)
             ]
             re_chosen = select_matches_for_entity(
                 remaining_cands,
                 min_prob_filter=self.min_prob_filter,
                 max_candidates=self.max_candidates_per_entity,
             )
-            selected_per_s1[s1_id] = {c_id: p for c_id, p in re_chosen}
+            new_cands = {c_id: p for c_id, p in re_chosen}
+            selected_per_s1[s1_id] = new_cands
+            all_assigned.difference_update(curr_assigned)
+            all_assigned.update(new_cands.keys())
 
         return {s1_id: set(cands.keys()) for s1_id, cands in selected_per_s1.items()}
+
+

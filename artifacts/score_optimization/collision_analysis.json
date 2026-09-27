@@ -1,0 +1,10 @@
+{
+  "num_pairs_evaluated": 221157,
+  "num_positives": 14946,
+  "total_distinct_56d_points": 219067,
+  "mixed_collision_groups": 5,
+  "mixed_collision_pct": 0.0,
+  "mixed_collision_positives": 5,
+  "mixed_collision_positives_pct": 0.03,
+  "mixed_collision_negatives": 5
+}

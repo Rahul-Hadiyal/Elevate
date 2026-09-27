@@ -1,0 +1,7 @@
+{
+  "baseline_submission_sha256": "74918daf652ebfe403bd574e5b6c0dc1e3d51ba24edcebf87095e424431adf86",
+  "production_scorer_sha256": "ee199ba891a94562e3ea315cb96c12c0657252e2e1e34d6f8ffaf68374defdfe",
+  "production_calibrator_sha256": "2ff7a5d77e55d49494c0f84bd81e9f067e039b63da7a88463e45d7181e5e598b",
+  "candidate_pairs_path": "c:\\Users\\rahul\\Desktop\\Elevate\\output\\candidate_pairs.tsv",
+  "test_source1_path": "c:\\Users\\rahul\\Desktop\\Elevate\\student_resource\\dataset\\test\\test_source1.tsv"
+}
