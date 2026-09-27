@@ -250,38 +250,79 @@ def run_final_audit_pipeline() -> Dict[str, Any]:
     # =========================================================================
     # 3. TEST INFERENCE EXECUTION
     # =========================================================================
+    output_dir = repo_root / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    cand_pairs_path = output_dir / "candidate_pairs.tsv"
+    if not cand_pairs_path.exists():
+        cand_pairs_path = repo_root / "output" / "candidate_pairs.tsv"
+
+    use_precomputed_cands = cand_pairs_path.exists()
+
     logger.info("Loading official test dataset Source 1...")
     test_s1_df, _ = load_entity_source(test_dir / "test_source1.tsv", "S1")
     logger.info(f"Loaded {len(test_s1_df):,d} S1 records.")
 
-    test_index = BlockingIndex(min_token_len=3, max_token_df=5000)
     cand_test_lookup = {}
+    test_blocker = None
 
-    logger.info("Loading and normalizing test Source 2...")
-    test_s2_df, _ = load_entity_source(test_dir / "test_source2.tsv", "S2")
-    test_s2_norm = normalizer.normalize_dataframe(test_s2_df)
-    del test_s2_df
-    gc.collect()
+    if use_precomputed_cands:
+        logger.info(f"Found pre-computed multi-channel candidate pairs at {cand_pairs_path}.")
+        logger.info("Streaming candidate pairs index into memory (bypassing BlockingIndex rebuild)...")
+        cand_map: Dict[str, List[str]] = {}
+        with open(cand_pairs_path, "r", encoding="utf-8") as f:
+            next(f, None)
+            for line in f:
+                parts = line.rstrip("\r\n").split("\t")
+                if len(parts) == 2 and parts[1]:
+                    cand_map[parts[0]] = [cid.strip() for cid in parts[1].split(",") if cid.strip()]
+        logger.info(f"Loaded candidate sets for {len(cand_map):,d} test S1 entities.")
 
-    logger.info("Indexing test Source 2...")
-    test_index.add_dataframe(test_s2_norm)
-    cand_test_lookup.update(build_entity_lookup(test_s2_norm))
-    del test_s2_norm
-    gc.collect()
+        logger.info("Loading and normalizing test Source 2 lookups...")
+        test_s2_df, _ = load_entity_source(test_dir / "test_source2.tsv", "S2")
+        test_s2_norm = normalizer.normalize_dataframe(test_s2_df)
+        del test_s2_df
+        gc.collect()
+        cand_test_lookup.update(build_entity_lookup(test_s2_norm))
+        del test_s2_norm
+        gc.collect()
 
-    logger.info("Loading and normalizing test Source 3...")
-    test_s3_df, _ = load_entity_source(test_dir / "test_source3.tsv", "S3")
-    test_s3_norm = normalizer.normalize_dataframe(test_s3_df)
-    del test_s3_df
-    gc.collect()
+        logger.info("Loading and normalizing test Source 3 lookups...")
+        test_s3_df, _ = load_entity_source(test_dir / "test_source3.tsv", "S3")
+        test_s3_norm = normalizer.normalize_dataframe(test_s3_df)
+        del test_s3_df
+        gc.collect()
+        cand_test_lookup.update(build_entity_lookup(test_s3_norm))
+        del test_s3_norm
+        gc.collect()
+    else:
+        test_index = BlockingIndex(min_token_len=3, max_token_df=5000)
 
-    logger.info("Indexing test Source 3...")
-    test_index.add_dataframe(test_s3_norm)
-    cand_test_lookup.update(build_entity_lookup(test_s3_norm))
-    del test_s3_norm
-    gc.collect()
+        logger.info("Loading and normalizing test Source 2...")
+        test_s2_df, _ = load_entity_source(test_dir / "test_source2.tsv", "S2")
+        test_s2_norm = normalizer.normalize_dataframe(test_s2_df)
+        del test_s2_df
+        gc.collect()
 
-    test_blocker = MultiChannelBlocker(test_index, max_cands_per_key=100)
+        logger.info("Indexing test Source 2...")
+        test_index.add_dataframe(test_s2_norm)
+        cand_test_lookup.update(build_entity_lookup(test_s2_norm))
+        del test_s2_norm
+        gc.collect()
+
+        logger.info("Loading and normalizing test Source 3...")
+        test_s3_df, _ = load_entity_source(test_dir / "test_source3.tsv", "S3")
+        test_s3_norm = normalizer.normalize_dataframe(test_s3_df)
+        del test_s3_df
+        gc.collect()
+
+        logger.info("Indexing test Source 3...")
+        test_index.add_dataframe(test_s3_norm)
+        cand_test_lookup.update(build_entity_lookup(test_s3_norm))
+        del test_s3_norm
+        gc.collect()
+
+        test_blocker = MultiChannelBlocker(test_index, max_cands_per_key=100)
+
     logger.info(f"Test candidate lookup initialized with {len(cand_test_lookup):,d} candidate records.")
 
     logger.info("Executing fast chunked test inference with parallel feature extraction...")
@@ -303,32 +344,43 @@ def run_final_audit_pipeline() -> Dict[str, Any]:
         s1_norm_chunk = normalizer.normalize_dataframe(s1_chunk)
         s1_chunk_lookup = build_entity_lookup(s1_norm_chunk)
 
-        # Multi-channel candidate blocking
-        c_a = test_blocker.generate_channel_a(s1_norm_chunk)
-        c_b = test_blocker.generate_channel_b(s1_norm_chunk)
-        c_c = test_blocker.generate_channel_c(s1_norm_chunk)
-        c_d = test_blocker.generate_channel_d(s1_norm_chunk)
-        c_e = test_blocker.generate_channel_e(s1_norm_chunk)
-        c_g = test_blocker.generate_channel_g(s1_norm_chunk)
-        c_h = test_blocker.generate_channel_h(s1_norm_chunk)
-        c_i = test_blocker.generate_channel_i(s1_norm_chunk)
-        c_j = test_blocker.generate_channel_j(s1_norm_chunk)
-        c_k = test_blocker.generate_channel_k(s1_norm_chunk)
+        if use_precomputed_cands:
+            cand_dict = {}
+            for s1_id in s1_norm_chunk["entity_id"]:
+                cands = cand_map.get(s1_id, [])[:50]
+                cand_dict[s1_id] = cands
+                blocking_cands_per_s1.append(len(cands))
+            pair_list = [(s1_id, cid) for s1_id, cands in cand_dict.items() for cid in cands]
+            st_counts = None
+        else:
+            # Multi-channel candidate blocking
+            c_a = test_blocker.generate_channel_a(s1_norm_chunk)
+            c_b = test_blocker.generate_channel_b(s1_norm_chunk)
+            c_c = test_blocker.generate_channel_c(s1_norm_chunk)
+            c_d = test_blocker.generate_channel_d(s1_norm_chunk)
+            c_e = test_blocker.generate_channel_e(s1_norm_chunk)
+            c_g = test_blocker.generate_channel_g(s1_norm_chunk)
+            c_h = test_blocker.generate_channel_h(s1_norm_chunk)
+            c_i = test_blocker.generate_channel_i(s1_norm_chunk)
+            c_j = test_blocker.generate_channel_j(s1_norm_chunk)
+            c_k = test_blocker.generate_channel_k(s1_norm_chunk)
 
-        st = CandidateStore(s1_norm_chunk["entity_id"])
-        for ch_name, ch_cands in [
-            ("Channel_A", c_a), ("Channel_B", c_b), ("Channel_C", c_c),
-            ("Channel_D", c_d), ("Channel_E", c_e), ("Channel_G", c_g),
-            ("Channel_H", c_h), ("Channel_I", c_i), ("Channel_J", c_j),
-            ("Channel_K", c_k)
-        ]:
-            st.add_channel_candidates(ch_name, ch_cands)
+            st = CandidateStore(s1_norm_chunk["entity_id"])
+            for ch_name, ch_cands in [
+                ("Channel_A", c_a), ("Channel_B", c_b), ("Channel_C", c_c),
+                ("Channel_D", c_d), ("Channel_E", c_e), ("Channel_G", c_g),
+                ("Channel_H", c_h), ("Channel_I", c_i), ("Channel_J", c_j),
+                ("Channel_K", c_k)
+            ]:
+                st.add_channel_candidates(ch_name, ch_cands)
 
-        cand_dict = st.get_candidate_dict(cap=50)
-        for s1_id in s1_norm_chunk["entity_id"]:
-            blocking_cands_per_s1.append(len(cand_dict.get(s1_id, [])))
+            cand_dict = st.get_candidate_dict(cap=50)
+            for s1_id in s1_norm_chunk["entity_id"]:
+                blocking_cands_per_s1.append(len(cand_dict.get(s1_id, [])))
 
-        pair_list = [(s1_id, cid) for s1_id, cands in cand_dict.items() for cid in cands]
+            pair_list = [(s1_id, cid) for s1_id, cands in cand_dict.items() for cid in cands]
+            st_counts = st.get_channel_counts()
+
         total_pairs_scored += len(pair_list)
 
         if not pair_list:
@@ -337,7 +389,7 @@ def run_final_audit_pipeline() -> Dict[str, Any]:
             continue
 
         ext = FeatureExtractor(s1_chunk_lookup, cand_test_lookup)
-        batch = ext.extract_pair_batch(pair_list, channel_counts=st.get_channel_counts())
+        batch = ext.extract_pair_batch(pair_list, channel_counts=st_counts)
 
         raw_p = prod_scorer.predict_proba(batch.features)
         cal_p = prod_calibrator.predict_proba(raw_p)
@@ -356,7 +408,7 @@ def run_final_audit_pipeline() -> Dict[str, Any]:
 
         chunk_preds = prod_decision_engine.optimize_predictions(entity_cand_map)
         all_predictions.update(chunk_preds)
-        del s1_chunk, s1_norm_chunk, s1_chunk_lookup, batch, raw_p, cal_p, entity_cand_map, st, cand_dict, pair_list
+        del s1_chunk, s1_norm_chunk, s1_chunk_lookup, batch, raw_p, cal_p, entity_cand_map, cand_dict, pair_list
         gc.collect()
         logger.info(f"  Processed Chunk {chunk_idx+1}/{num_chunks} ({e_i:,d}/{total_test_s1:,d} S1 entities).")
 

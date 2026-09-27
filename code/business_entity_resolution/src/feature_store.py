@@ -119,7 +119,7 @@ class FeatureExtractor:
         # Execute in parallel if n_pairs > 10,000
         if n_pairs >= 10000:
             import concurrent.futures
-            n_threads = min(8, max(2, os.cpu_count() or 4))
+            n_threads = min(16, max(2, os.cpu_count() or 4))
             chunk_step = int(np.ceil(n_pairs / n_threads))
             futures = []
             with concurrent.futures.ThreadPoolExecutor(max_workers=n_threads) as executor:
